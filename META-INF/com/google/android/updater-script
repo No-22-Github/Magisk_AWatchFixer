@@ -1,0 +1,4 @@
+ui_print("Installing Magisk Brick Rescue...");
+set_perm_recursive(0, 0, 0755, 0644, "/system");
+set_perm(0, 0, 0755, "/system/bin/sh");
+ui_print("Installation Complete.");
