@@ -5,18 +5,25 @@ CONFIG_FILE="$MODDIR/AWF_config.conf"
 LOG_FILE="$MODDIR/AWF_log.log"
 BOOT_LOG="$MODDIR/AWF_boot_log2.log"
 
+read_config() {
+  local result=$(sed -n "s/^$1//p" "$CONFIG_FILE")
+  echo ${result:-$2}
+}
+
 module_log() {
-  local log_level=$1
-  local log_message=$2
+    local log_level=$1
+    local log_message=$2
 
-  case $log_level in
-    1) log_level="INFO" ;;
-    2) log_level="WARN" ;;
-    3) log_level="ERROR" ;;
-    4) log_level="ACTION" ;;
-  esac
+    case $log_level in
+        1) log_level="INFO" ;;
+        2) log_level="WARN" ;;
+        3) log_level="ERROR" ;;
+        4) log_level="ACTION" ;;
+    esac
 
-  echo "[$(date '+%m-%d %H:%M:%S')] [$log_level] - $log_message" >> "$LOG_FILE"
+    echo "[$(date '+%m-%d %H:%M:%S')] [$log_level] - $log_message" >> "$LOG_FILE"
+
+    sync "$LOG_FILE"
 }
 
 module_log "1" "service.sh 执行中..."
@@ -32,22 +39,13 @@ else
     module_log "1" "文件AWF_skip2不存在，脚本继续运行。"
 fi
 
-# 加载配置文件
-if [ -f "$CONFIG_FILE" ]; then
-    grep -E '^[a-zA-Z_][a-zA-Z0-9_]*=[^(){};&|]*$' $CONFIG_FILE | sed 's/^/export /' > safe_config.sh
-    # 较为安全的配置文件加载方式
-    source safe_config.sh
-    # God bless you.
-    module_log "1" "配置文件存在，已完成加载"
-else
-    module_log "2" "配置文件不存在，使用默认配置"
-    export FAIL_1=1
-    export FAIL_2=2
-    export FAIL_3=3
-    export FAIL_4=4
-    export FAIL_5=0
-    export TIMEOUT=180
-fi
+module_log "4" "读取配置文件中..."
+FAIL_1=$(read_config "FAIL_1=" "1")
+FAIL_2=$(read_config "FAIL_2=" "2")
+FAIL_3=$(read_config "FAIL_3=" "3")
+FAIL_4=$(read_config "FAIL_4=" "4")
+FAIL_5=$(read_config "FAIL_5=" "0")
+TIMEOUT=$(read_config "TIMEOUT=" "180")
 
 # 获取启动次数
 if [ -f "$BOOT_LOG" ]; then
