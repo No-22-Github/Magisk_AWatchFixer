@@ -1,12 +1,12 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
 MODID=${MODDIR##*/}
-CONFIG_FILE="$MODDIR/brick_rescue.conf"
+CONFIG_FILE="$MODDIR/AWF_config.conf"
 LOG_FILE="$MODDIR/AWF_log.log"
 BOOT_LOG="$MODDIR/AWF_boot_log1.log"
 
 module_log() {
-  local log_level=${1:-1}  # 默认值为 1
+  local log_level=$1
   local log_message=$2
 
   case $log_level in
@@ -16,10 +16,10 @@ module_log() {
     4) log_level="ACTION" ;;
   esac
 
-  echo "[$(date '+%m-%d %H:%M:%S')] [$log_level] - $log_message" >> $LOG_FILE
+  echo "[$(date '+%m-%d %H:%M:%S')] [$log_level] - $log_message" >> "$LOG_FILE"
 }
 
-module_log "post-fs-data.sh 执行中..."
+module_log "1" "post-fs-data.sh 执行中..."
 
 # 检查目录中是否存在文件AWF_skip1
 if [ -f "$MODDIR/AWF_skip1" ]; then
@@ -27,7 +27,7 @@ if [ -f "$MODDIR/AWF_skip1" ]; then
     module_log "2" "文件AWF_skip1存在，脚本将退出。"
     exit 0
 else
-    module_log "文件AWF_skip1不存在，脚本继续运行。"
+    module_log "1" "文件AWF_skip1不存在，脚本继续运行。"
 fi
 
 if [ -f "$CONFIG_FILE" ]; then
@@ -35,9 +35,9 @@ if [ -f "$CONFIG_FILE" ]; then
     # 较为安全的配置文件加载方式
     source safe_config.sh
     # God bless you.
-    module_log "配置文件存在，已完成加载"
+    module_log "1" "配置文件存在，已完成加载"
 else
-    module_log "配置文件不存在，使用默认配置"
+    module_log "2" "配置文件不存在，使用默认配置"
     export FAIL_1=1
     export FAIL_2=2
     export FAIL_3=3
@@ -67,7 +67,7 @@ esac
 module_log "2" "尝试启动次数: $Frequency"
 
 case "$ACTION" in
-    1)  module_log "尝试开机，进入系统"
+    1)  module_log "1" "尝试开机，进入系统"
         exit 0
         ;;
     2)
