@@ -30,13 +30,60 @@ module_log "1" "service.sh 执行中..."
 rm "$MODDIR/AWF_boot_log1.log"
 module_log "4" "删除 AWF_boot_log1.log 日志"
 
+# 检查设备是否卡在开机动画或未完成启动
+check_boot_status() {
+    local start_time=$(date +%s)  # 获取当前时间戳
+
+    while true; do
+        # 获取当前时间戳
+        local current_time=$(date +%s)
+        local elapsed_time=$((current_time - start_time))
+
+        # 检查开机动画状态
+        bootanim_status=$(getprop init.svc.bootanim)
+        boot_completed=$(getprop sys.boot_completed)
+
+        # 如果开机动画正在显示，继续等待
+        if [ "$bootanim_status" = "running" ]; then
+            if [ $elapsed_time -ge $TIMEOUT ]; then
+                module_log "3" "设备卡在开机动画超过 $TIMEOUT 秒，触发救砖逻辑"
+                return 1  # 超时，触发救砖
+            fi
+            sleep 10
+            continue
+        fi
+
+        # 检查是否完成启动
+        if [ "$boot_completed" = "1" ]; then
+            module_log "1" "设备已成功启动，未卡在开机动画"
+            return 0  # 启动完成
+        fi
+
+        # 如果经过时间超过最大等待时间，仍未完成启动，则触发救砖
+        if [ $elapsed_time -ge $TIMEOUT ]; then
+            module_log "3" "设备未完成启动，超过 $TIMEOUT 秒，触发救砖逻辑"
+            return 1
+        fi
+
+        sleep 10
+    done
+}
+
 # 检查目录中是否存在文件AWF_skip2
 if [ -f "$MODDIR/AWF_skip2" ]; then
     rm "$MODDIR/AWF_skip2"
-    module_log "2" "文件AWF_skip2存在，脚本将退出。"
-    exit 0
+    module_log "2" "文件AWF_skip2存在，不执行救砖"
+    module_log "4" "启动开机守护模式"
+    if ! check_boot_status; then
+        module_log "3" "卡在开机动画超过 "$TIMEOUT" 秒，重启"
+        reboot
+    else
+        module_log "4" "启动正常，删除了启动次数日志文件"
+        rm "$BOOT_LOG"
+        exit 0
+    fi
 else
-    module_log "1" "文件AWF_skip2不存在，脚本继续运行。"
+    module_log "1" "文件AWF_skip2不存在，脚本继续运行"
 fi
 
 module_log "4" "读取配置文件中..."
@@ -106,45 +153,6 @@ case "$ACTION" in
         ;;
 esac
 
-# 检查设备是否卡在开机动画或未完成启动
-check_boot_status() {
-    local start_time=$(date +%s)  # 获取当前时间戳
-
-    while true; do
-        # 获取当前时间戳
-        local current_time=$(date +%s)
-        local elapsed_time=$((current_time - start_time))
-
-        # 检查开机动画状态
-        bootanim_status=$(getprop init.svc.bootanim)
-        boot_completed=$(getprop sys.boot_completed)
-
-        # 如果开机动画正在显示，继续等待
-        if [ "$bootanim_status" = "running" ]; then
-            if [ $elapsed_time -ge $TIMEOUT ]; then
-                module_log "3" "设备卡在开机动画超过 $TIMEOUT 秒，触发救砖逻辑"
-                return 1  # 超时，触发救砖
-            fi
-            sleep 10
-            continue
-        fi
-
-        # 检查是否完成启动
-        if [ "$boot_completed" = "1" ]; then
-            module_log "1" "设备已成功启动，未卡在开机动画"
-            return 0  # 启动完成
-        fi
-
-        # 如果经过时间超过最大等待时间，仍未完成启动，则触发救砖
-        if [ $elapsed_time -ge $TIMEOUT ]; then
-            module_log "3" "设备未完成启动，超过 $TIMEOUT 秒，触发救砖逻辑"
-            return 1
-        fi
-
-        sleep 10
-    done
-}
-
 # 检查开机状态
 if ! check_boot_status; then
     case "$ACTION" in
@@ -187,6 +195,12 @@ else
     if [ -f "$BOOT_LOG" ]; then
         rm "$BOOT_LOG"
         module_log "4" "启动正常，删除了启动次数日志文件"
+    fi
+    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE") -gt 65536 ]
+    then
+        cp "$LOG_FILE" "$LOGFILE.old" && rm "$LOG_FILE"
+        touch "$LOGFILE"
+        module_log "4" "日志文件达到 64KB 及以上 已备份并重新创建"
     fi
     module_log "1" "启动正常，无需救砖"
 fi
