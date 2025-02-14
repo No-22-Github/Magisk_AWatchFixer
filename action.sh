@@ -17,7 +17,7 @@ parse_config() {
       echo "不执行任何操作"
       ;;
     "2")
-      echo."禁用所有 Magisk 模块"
+      echo "禁用所有 Magisk 模块"
       ;;
     "3")
       echo "进入 Recovery"
@@ -31,8 +31,8 @@ parse_config() {
     *)
       echo "未知选项，请检查配置文件。原数字：$1"
       ;;
+  esac
 }
-    
     
   
   
